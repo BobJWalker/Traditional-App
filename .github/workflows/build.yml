@@ -50,16 +50,16 @@ jobs:
                   mkdir "$GITHUB_WORKSPACE/artifacts"
                   mkdir "$GITHUB_WORKSPACE/artifacts/TraditionalApp.Web" 
       
-            - name: Publish Database
+            - name: Publish Application
               run: dotnet publish src/TraditionalApp.Web/TraditionalApp.Web.csproj --configuration Release --self-contained --output "$GITHUB_WORKSPACE/artifacts/TraditionalApp.Web" -a "x64"              
             
-            - name: package database
+            - name: package Application
               id: "website_package"
               uses: OctopusDeploy/create-zip-package-action@v3
               with:
                 package_id: TraditionalApp.Web
                 version: "${{ env.GitVersion_SemVer }}"  
-                base_path: "artifacts/artifacts/TraditionalApp.Web"          
+                base_path: "artifacts/TraditionalApp.Web"          
                 files: "**/*"
                 output_folder: packaged
             
