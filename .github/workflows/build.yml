@@ -30,13 +30,13 @@ jobs:
             - name: Install GitVersion
               uses: gittools/actions/gitversion/setup@v1
               with:
-                  versionSpec: 6.x
+                  versionSpec: 6.0.9
             - id: determine_version
               name: Determine Version
               uses: gittools/actions/gitversion/execute@v1
               with:
                   additionalArguments: /config gitversion.yml
-                  
+
             - name: update tag
               uses: richardsimko/update-tag@v1
               with:
