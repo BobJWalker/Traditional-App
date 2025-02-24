@@ -1,0 +1,98 @@
+name: Build and Push to Octopus
+
+on:
+    push:
+      branches: 
+        - main
+        - 'feature/**'        
+      paths:
+          - 'src/**'
+          - '.github/workflows/build.yml'
+    workflow_dispatch:
+env:    
+  OCTOPUS_SPACE: ${{ vars.OCTOPUS_SPACE }}
+  OCTOPUS_API_KEY: ${{ secrets.OCTOPUSSERVERAPIKEY }}  
+  OCTOPUS_URL: ${{ vars.OCTOPUS_SERVER_URL }}
+jobs:
+    build-and-push-application:
+        runs-on: ubuntu-latest        
+        strategy:
+          matrix:
+            dotnet-version: ['8.0.x']
+        steps:
+            - uses: actions/checkout@v1
+              with:
+                fetch-depth: '0'
+            - name: Setup .NET SDK
+              uses: actions/setup-dotnet@v3
+              with:
+                dotnet-version: ${{ matrix.dotnet-version }}
+            - name: Install GitVersion
+              uses: gittools/actions/gitversion/setup@v1
+              with:
+                  versionSpec: 6.x
+            - id: determine_version
+              name: Determine Version
+              uses: gittools/actions/gitversion/execute@v1
+              with:
+                  additionalArguments: /config gitversion.yml
+                  
+            - name: update tag
+              uses: richardsimko/update-tag@v1
+              with:
+                tag_name: ${{ env.GitVersion_SemVer }}
+              env: 
+                GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              if: github.ref == 'refs/heads/main'
+
+            - name: Setup .NET SDK
+              uses: actions/setup-dotnet@v3
+              with:
+                dotnet-version: ${{ matrix.dotnet-version }}       
+      
+            - name: Install dependencies
+              run: dotnet restore src/TraditionalApp.sln    
+            
+            - name: Create artifacts folder
+              run: |
+                  mkdir "$GITHUB_WORKSPACE/artifacts"
+                  mkdir "$GITHUB_WORKSPACE/artifacts/TraditionalApp.Web" 
+      
+            - name: Publish Database
+              run: dotnet publish src/TraditionalApp.Web/TraditionalApp.Web.csproj --configuration Release --self-contained --output "$GITHUB_WORKSPACE/artifacts/TraditionalApp.Web" -a "x64"              
+            
+            - name: package database
+              id: "website_package"
+              uses: OctopusDeploy/create-zip-package-action@v3
+              with:
+                package_id: TraditionalApp.Web
+                version: "${{ env.GitVersion_SemVer }}"  
+                base_path: "artifacts/artifacts/TraditionalApp.Web"          
+                files: "**/*"
+                output_folder: packaged
+            
+            - name: push packages to Octopus
+              uses: OctopusDeploy/push-package-action@v3
+              with:
+                packages: |
+                  packaged/**/*.zip 
+            
+            - name: push database build information to Octopus
+              uses: OctopusDeploy/push-build-information-action@v3
+              with:
+                packages: |            
+                  TraditionalApp.Web                    
+                version: "${{ env.GitVersion_SemVer }}"               
+              
+            - name: Create Release for GitHub
+              id: create_release
+              uses: actions/create-release@v1
+              env:
+                GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
+              with:
+                tag_name: "${{ needs.prep.outputs.sem_Ver }}"
+                release_name: Release ${{ needs.prep.outputs.sem_Ver }}
+                body: |
+                  Commit Message: ${{ github.event.head_commit.message }}
+                draft: false
+                prerelease:  ${{ github.ref == 'refs/heads/main' && 'false' || 'true' }}
