@@ -58,7 +58,7 @@ jobs:
                   mkdir "$GITHUB_WORKSPACE/artifacts/TraditionalApp.Web" 
       
             - name: Publish Application
-              run: dotnet publish src/TraditionalApp.Web/TraditionalApp.Web.csproj --configuration Release --self-contained --output "$GITHUB_WORKSPACE/artifacts/TraditionalApp.Web" -a "x64"              
+              run: dotnet publish src/TraditionalApp.Web/TraditionalApp.Web.csproj --configuration Release --output "$GITHUB_WORKSPACE/artifacts/TraditionalApp.Web" -a "x64"              
             
             - name: package Application
               id: "website_package"
